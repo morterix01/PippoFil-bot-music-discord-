@@ -9,6 +9,11 @@ if (!globalThis.crypto) {
 
 require('dotenv').config();
 
+const ffmpeg = require('ffmpeg-static');
+if (ffmpeg) {
+    process.env.FFMPEG_PATH = ffmpeg;
+}
+
 const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
@@ -24,9 +29,24 @@ const client = new Client({
     ],
 });
 
+const youtubeDl = require('youtube-dl-exec');
+
 // Inizializza discord-player
 const player = new Player(client, {
-    skipFFmpeg: false,
+    onBeforeCreateStream: async (track, queryType) => {
+        try {
+            console.log(`[Stream-Hook] Estrazione audio diretto via youtube-dl per: ${track.title}`);
+            const subprocess = youtubeDl.exec(track.url, {
+                output: '-',
+                format: 'bestaudio',
+                noCheckCertificates: true,
+                noWarnings: true,
+            });
+            return subprocess.stdout;
+        } catch (err) {
+            console.error('[Stream-Hook Error]', err.message);
+        }
+    }
 });
 
 // ─── EVENTI DISCORD ────────────────────────────────────────────────────────────
@@ -112,14 +132,41 @@ player.events.on('emptyChannel', (queue) => {
 
 player.events.on('error', (queue, error) => {
     console.error(`[PlayerError] ${error.message}`);
+    console.error(`[PlayerError] Stack:`, error.stack);
     const channel = queue.metadata?.channel;
     if (channel && error.message !== 'Aborted') {
         channel.send(`❌ Errore del player: ${error.message}`);
     }
 });
 
-player.events.on('playerError', (queue, error) => {
+player.events.on('playerError', (queue, error, track) => {
     console.error(`[PlayerError - Audio] ${error.message}`);
+    console.error(`[PlayerError - Audio] Track: ${track?.title}`);
+    console.error(`[PlayerError - Audio] Stack:`, error.stack);
+    const channel = queue.metadata?.channel;
+    if (channel) {
+        channel.send(`❌ Errore audio: ${error.message}`);
+    }
+});
+
+player.events.on('playerStart', (queue, track) => {
+    console.log(`[DEBUG] playerStart: ${track.title} | source: ${track.source} | extractor: ${track.extractor?.identifier}`);
+});
+
+player.events.on('playerFinish', (queue, track) => {
+    console.log(`[DEBUG] playerFinish: ${track.title}`);
+});
+
+player.events.on('playerSkip', (queue, track) => {
+    console.log(`[DEBUG] playerSkip: ${track.title} - reason: track could not be streamed`);
+    const channel = queue.metadata?.channel;
+    if (channel) {
+        channel.send(`⏭️ Canzone saltata (non riproducibile): **${track.title}**`);
+    }
+});
+
+player.events.on('debug', (queue, message) => {
+    console.log(`[Player-Debug] ${message}`);
 });
 
 // ─── INIZIALIZZAZIONE E LOGIN SEQUENZIALE ──────────────────────────────────────
