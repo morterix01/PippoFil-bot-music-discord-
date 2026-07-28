@@ -8,7 +8,6 @@ require('dotenv').config();
 const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
-const { YoutubeiExtractor } = require('discord-player-youtubei');
 const fs = require('fs');
 const path = require('path');
 
@@ -28,8 +27,11 @@ const player = new Player(client, {
 
 // Carica gli estrattori (YouTube, Spotify, SoundCloud, ecc.)
 (async () => {
-    // Prima registra l'estrattore YouTube (youtubei)
-    await player.extractors.register(YoutubeiExtractor, {});
+    // Carica dinamicamente YoutubeiExtractor (modulo ESM)
+    const { YoutubeiExtractor } = await import('discord-player-youtubei');
+    await player.extractors.register(YoutubeiExtractor, {
+        overrideBridgeMode: 'yt'
+    });
     console.log('[Player] Estrattore YouTube (youtubei) caricato.');
 
     // Poi registra gli estrattori di default (Spotify, SoundCloud, Apple Music, ecc.)
