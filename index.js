@@ -1,3 +1,7 @@
+// ─── OPTIMIZATION: V8 Memory Limit per Hosting Low-RAM ─────────────────────
+const v8 = require('v8');
+v8.setFlagsFromString('--max_old_space_size=256');
+
 // ─── POLYFILL: Web Crypto API per Node 18 ───────────────────────────────────
 if (!globalThis.crypto) {
     globalThis.crypto = require('crypto').webcrypto;
