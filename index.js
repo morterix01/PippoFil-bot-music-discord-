@@ -267,14 +267,31 @@ player.events.on('debug', (queue, message) => {
         });
         console.log('[Player] Estrattore YouTube (youtubei) caricato.');
 
-        // ── OVERRIDE STREAM: usa yt-dlp per stream audio affidabile ──
-        const ytExtractor = player.extractors.store.get('com.retrouser955.discord-player.discord-player-youtubei');
-        if (ytExtractor) {
-            const originalStream = ytExtractor.stream.bind(ytExtractor);
-            ytExtractor.stream = async function(track, options) {
+        // Carica estrattori di default (Spotify, SoundCloud, ecc.)
+        await player.extractors.loadMulti(DefaultExtractors);
+        console.log('[Player] Estrattori di default caricati.');
+
+        // ── OVERRIDE STREAM: usa yt-dlp per TUTTI gli estrattori (YouTube, Spotify, SoundCloud) ──
+        for (const [id, extractor] of player.extractors.store) {
+            const originalStream = extractor.stream.bind(extractor);
+            extractor.stream = async function(track, options) {
                 try {
-                    console.log(`[YT-DLP] Avvio stream per: ${track.title}`);
-                    const ytdlp = youtubeDl.exec(track.url, {
+                    console.log(`[YT-DLP] Avvio stream (${id}) per: ${track.title} - ${track.author}`);
+                    const isExternal = track.url?.includes('spotify.com') || track.url?.includes('soundcloud.com') || track.source !== 'youtube';
+                    const target = isExternal ? `ytsearch:${track.title} ${track.author}` : track.url;
+
+                    // Ripristina la copertina HD se è il fallback generico di Spotify
+                    if (!track.thumbnail || track.thumbnail.includes('twitter_card-default.jpg')) {
+                        try {
+                            const meta = await youtubeDl(target, { dumpSingleJson: true, noCheckCertificates: true, noWarnings: true });
+                            const entry = meta.entries ? meta.entries[0] : meta;
+                            if (entry && entry.thumbnail) {
+                                track.thumbnail = entry.thumbnail;
+                            }
+                        } catch (e) {}
+                    }
+
+                    const ytdlp = youtubeDl.exec(target, {
                         output: '-',
                         format: 'bestaudio',
                         noCheckCertificates: true,
@@ -285,7 +302,7 @@ player.events.on('debug', (queue, message) => {
                     ytdlp.stdout.on('error', () => {});
                     ytdlp.on('error', (err) => console.error('[YT-DLP Error]', err.message));
 
-                    console.log('[YT-DLP] ✅ Stream yt-dlp (arbitrary) avviato');
+                    console.log(`[YT-DLP] ✅ Stream avviato con successo per: ${track.title}`);
                     return {
                         stream: ytdlp.stdout,
                         type: 'arbitrary'
@@ -295,12 +312,8 @@ player.events.on('debug', (queue, message) => {
                     return originalStream(track, options);
                 }
             };
-            console.log('[Player] ✅ Override stream yt-dlp attivato.');
         }
-
-        // Carica estrattori di default (Spotify, SoundCloud, ecc.)
-        await player.extractors.loadMulti(DefaultExtractors);
-        console.log('[Player] Estrattori di default caricati.');
+        console.log('[Player] ✅ Override stream yt-dlp attivato per TUTTI gli estrattori (YouTube, Spotify, SoundCloud).');
 
         // Esegui login solo DOPO che gli estrattori e i comandi sono pronti
         await client.login(process.env.DISCORD_TOKEN);
