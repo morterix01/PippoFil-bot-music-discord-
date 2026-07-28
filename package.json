@@ -15,6 +15,7 @@
   "dependencies": {
     "@discord-player/extractor": "^7.2.0",
     "@distube/ytdl-core": "^4.16.10",
+    "@snazzah/davey": "^0.1.12",
     "discord-player": "^7.2.0",
     "discord.js": "^14.27.0",
     "dotenv": "^17.4.2",
