@@ -4,6 +4,7 @@
   "description": "Discord Music Bot - YouTube & Spotify",
   "main": "index.js",
   "scripts": {
+    "prestart": "git pull origin main || true",
     "start": "node --max-old-space-size=256 index.js",
     "register": "node register-commands.js",
     "dev": "node --max-old-space-size=256 --watch index.js"
