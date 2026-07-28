@@ -15,6 +15,9 @@ function createNowPlayingUI(queue, track) {
     const loopModes = ['Off', '🔂 Brano', '🔁 Coda', '♾️ Autoplay'];
     const loopStatus = loopModes[queue.repeatMode] || 'Off';
 
+    // Trova la copertina ad alta risoluzione (YouTube o Spotify)
+    const coverUrl = track.thumbnail || track.raw?.thumbnail || track.raw?.album?.images?.[0]?.url;
+
     const embed = new EmbedBuilder()
         .setColor(0x1DB954)
         .setAuthor({ 
@@ -30,9 +33,13 @@ function createNowPlayingUI(queue, track) {
             { name: '🔁 Loop Mode', value: `\`${loopStatus}\``, inline: true },
             { name: '🎤 Richiesto da', value: track.requestedBy?.toString() || 'N/A', inline: true },
         )
-        .setThumbnail(track.thumbnail)
         .setFooter({ text: `Fonte: ${track.source || 'YouTube'} • PippoFil Bot` })
         .setTimestamp();
+
+    if (coverUrl) {
+        embed.setThumbnail(coverUrl);
+        embed.setImage(coverUrl);
+    }
 
     const row1 = new ActionRowBuilder().addComponents(
         new ButtonBuilder()

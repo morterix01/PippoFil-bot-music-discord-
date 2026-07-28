@@ -1,10 +1,10 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { useQueue } = require('discord-player');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('queue')
-        .setDescription('Mostra la coda musicale attuale')
+        .setDescription('Mostra la lista d\'attesa (coda musicale)')
         .addIntegerOption(option =>
             option.setName('pagina')
                 .setDescription('Numero di pagina della coda (default: 1)')
@@ -13,14 +13,17 @@ module.exports = {
     async execute(interaction) {
         const queue = useQueue(interaction.guild.id);
 
-        if (!queue || !queue.currentTrack) {
-            return interaction.reply({
-                content: '❌ Non c\'è nessuna canzone in riproduzione!',
-                ephemeral: true,
-            });
+        if (!queue || (!queue.currentTrack && queue.tracks.size === 0)) {
+            const emptyEmbed = new EmbedBuilder()
+                .setColor(0x1DB954)
+                .setTitle('📜 Lista d\'Attesa Vuota')
+                .setDescription('Non c\'è nessuna canzone in riproduzione o in coda al momento.\nAggiungi una canzone usando `/play`!')
+                .setTimestamp();
+
+            return interaction.reply({ embeds: [emptyEmbed], ephemeral: true });
         }
 
-        const page = interaction.options.getInteger('pagina') ?? 1;
+        const page = interaction.options?.getInteger('pagina') ?? 1;
         const pageSize = 10;
         const tracks = queue.tracks.toArray();
         const totalPages = Math.max(1, Math.ceil(tracks.length / pageSize));
@@ -36,33 +39,28 @@ module.exports = {
         const pageTracks = tracks.slice(start, start + pageSize);
 
         const current = queue.currentTrack;
-        const progress = queue.node.createProgressBar() || '▬▬▬▬▬▬▬▬▬▬';
+        const progress = queue.node.createProgressBar() || '▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬';
+        const coverUrl = current?.thumbnail || current?.raw?.thumbnail || current?.raw?.album?.images?.[0]?.url;
 
         let queueList = '';
         if (pageTracks.length === 0) {
-            queueList = '*Nessun\'altra canzone in coda.*';
+            queueList = '*Nessun\'altra canzone in coda dopo questa.*';
         } else {
             queueList = pageTracks
-                .map((t, i) => `\`${start + i + 1}.\` **${t.title}** — ${t.duration}`)
-                .join('\n');
+                .map((t, i) => `\`${start + i + 1}.\` **[${t.title}](${t.url})** — \`${t.duration}\` | *Richiesto da ${t.requestedBy?.username || 'Sconosciuto'}*`)
+                .join('\n\n');
         }
 
         const embed = new EmbedBuilder()
-            .setColor(0x5865F2) // Viola Discord
-            .setTitle('🎶 Coda Musicale')
-            .addFields(
-                {
-                    name: '▶️ In Riproduzione',
-                    value: `**[${current.title}](${current.url})** — ${current.duration}\n${progress}`,
-                },
-                {
-                    name: `📋 Prossime canzoni (Pagina ${page}/${totalPages})`,
-                    value: queueList,
-                },
-            )
-            .setThumbnail(current.thumbnail)
-            .setFooter({ text: `Totale: ${tracks.length} canzoni in coda • Volume: ${queue.node.volume}%` })
+            .setColor(0x1DB954)
+            .setTitle(`📜 Lista d'Attesa (Coda Musicale)`)
+            .setDescription(`**▶️ In Riproduzione Ora:**\n**[${current.title}](${current.url})**\n*di ${current.author}*\n${progress}\n\n─── **PROSSIMI BRANI IN CODA** (Pagina ${page}/${totalPages}) ───\n\n${queueList}`)
+            .setFooter({ text: `Brani in coda: ${tracks.length} • Volume: ${queue.node.volume}% • PippoFil Bot` })
             .setTimestamp();
+
+        if (coverUrl) {
+            embed.setThumbnail(coverUrl);
+        }
 
         return interaction.reply({ embeds: [embed] });
     },

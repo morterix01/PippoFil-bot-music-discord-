@@ -115,13 +115,23 @@ client.on('interactionCreate', async interaction => {
                     return interaction.update(ui);
                 }
                 case 'music_queue': {
-                    const tracks = queue.tracks.toArray().slice(0, 10);
-                    const trackList = tracks.map((t, i) => `**${i + 1}.** [${t.title}](${t.url}) - \`${t.duration}\``).join('\n');
+                    const tracks = queue.tracks.toArray();
+                    const current = queue.currentTrack;
+                    const pageTracks = tracks.slice(0, 10);
+                    const trackList = pageTracks
+                        .map((t, i) => `\`${i + 1}.\` **[${t.title}](${t.url})** — \`${t.duration}\` | *${t.requestedBy?.username || 'Sconosciuto'}*`)
+                        .join('\n\n');
+
+                    const coverUrl = current?.thumbnail || current?.raw?.thumbnail || current?.raw?.album?.images?.[0]?.url;
+
                     const embed = new EmbedBuilder()
                         .setColor(0x1DB954)
-                        .setTitle('📜 Prossimi brani in coda')
-                        .setDescription(trackList || 'Nessun altro brano in coda.')
-                        .setFooter({ text: `Totale brani in coda: ${queue.tracks.size}` });
+                        .setTitle('📜 Lista d\'Attesa (Coda Musicale)')
+                        .setDescription(`**▶️ In Riproduzione:**\n**[${current.title}](${current.url})**\n\n─── **PROSSIMI BRANI** ───\n\n${trackList || '*Nessun altro brano in coda.*'}`)
+                        .setFooter({ text: `Brani totali in coda: ${tracks.length} • Volume: ${queue.node.volume}%` });
+
+                    if (coverUrl) embed.setThumbnail(coverUrl);
+
                     return interaction.reply({ embeds: [embed], ephemeral: true });
                 }
             }
