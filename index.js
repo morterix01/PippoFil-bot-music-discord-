@@ -15,8 +15,9 @@ if (ffmpeg) {
 }
 
 const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
-const { Player } = require('discord-player');
+const { Player, useQueue } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
+const { createNowPlayingUI } = require('./utils/playerUI');
 const fs = require('fs');
 const path = require('path');
 
@@ -43,6 +44,93 @@ client.once('clientReady', () => {
 });
 
 client.on('interactionCreate', async interaction => {
+    // Gestione Pulsanti Interattivi del Lettore Musicale
+    if (interaction.isButton()) {
+        const queue = useQueue(interaction.guildId);
+        const voiceChannel = interaction.member?.voice?.channel;
+
+        if (!voiceChannel) {
+            return interaction.reply({
+                content: '❌ Devi essere nello stesso canale vocale per usare i controlli!',
+                ephemeral: true
+            });
+        }
+
+        if (!queue || !queue.currentTrack) {
+            return interaction.reply({
+                content: '❌ Nessuna riproduzione attiva al momento.',
+                ephemeral: true
+            });
+        }
+
+        const customId = interaction.customId;
+
+        try {
+            switch (customId) {
+                case 'music_prev': {
+                    if (!queue.history.previousTrack) {
+                        return interaction.reply({ content: '⏮️ Nessun brano precedente nella cronologia.', ephemeral: true });
+                    }
+                    await queue.history.back();
+                    return interaction.reply({ content: '⏮️ Torno al brano precedente!', ephemeral: true });
+                }
+                case 'music_pause_resume': {
+                    const wasPaused = queue.node.isPaused();
+                    if (wasPaused) {
+                        queue.node.resume();
+                    } else {
+                        queue.node.pause();
+                    }
+                    const ui = createNowPlayingUI(queue, queue.currentTrack);
+                    return interaction.update(ui);
+                }
+                case 'music_skip': {
+                    queue.node.skip();
+                    return interaction.reply({ content: '⏭️ Brano saltato!', ephemeral: true });
+                }
+                case 'music_stop': {
+                    queue.delete();
+                    return interaction.reply({ content: '⏹️ Riproduzione fermata e coda cancellata.', ephemeral: true });
+                }
+                case 'music_shuffle': {
+                    queue.tracks.shuffle();
+                    return interaction.reply({ content: '🔀 Coda mescolata!', ephemeral: true });
+                }
+                case 'music_loop': {
+                    const nextMode = (queue.repeatMode + 1) % 4;
+                    queue.setRepeatMode(nextMode);
+                    const ui = createNowPlayingUI(queue, queue.currentTrack);
+                    return interaction.update(ui);
+                }
+                case 'music_voldown': {
+                    const newVol = Math.max(0, queue.node.volume - 10);
+                    queue.node.setVolume(newVol);
+                    const ui = createNowPlayingUI(queue, queue.currentTrack);
+                    return interaction.update(ui);
+                }
+                case 'music_volup': {
+                    const newVol = Math.min(100, queue.node.volume + 10);
+                    queue.node.setVolume(newVol);
+                    const ui = createNowPlayingUI(queue, queue.currentTrack);
+                    return interaction.update(ui);
+                }
+                case 'music_queue': {
+                    const tracks = queue.tracks.toArray().slice(0, 10);
+                    const trackList = tracks.map((t, i) => `**${i + 1}.** [${t.title}](${t.url}) - \`${t.duration}\``).join('\n');
+                    const embed = new EmbedBuilder()
+                        .setColor(0x1DB954)
+                        .setTitle('📜 Prossimi brani in coda')
+                        .setDescription(trackList || 'Nessun altro brano in coda.')
+                        .setFooter({ text: `Totale brani in coda: ${queue.tracks.size}` });
+                    return interaction.reply({ embeds: [embed], ephemeral: true });
+                }
+            }
+        } catch (err) {
+            console.error('[Button Error]', err);
+            return interaction.reply({ content: `❌ Si è verificato un errore: ${err.message}`, ephemeral: true });
+        }
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     // Restrizione canale musicale (opzionale)
@@ -76,20 +164,8 @@ player.events.on('playerStart', (queue, track) => {
     const channel = queue.metadata?.channel;
     if (!channel) return;
 
-    const embed = new EmbedBuilder()
-        .setColor(0x1DB954)
-        .setTitle('🎵 In Riproduzione')
-        .setDescription(`**[${track.title}](${track.url})**`)
-        .addFields(
-            { name: '👤 Artista', value: track.author || 'Sconosciuto', inline: true },
-            { name: '⏱️ Durata', value: track.duration || 'N/A', inline: true },
-            { name: '🔊 Richiesto da', value: track.requestedBy?.toString() || 'N/A', inline: true },
-        )
-        .setThumbnail(track.thumbnail)
-        .setFooter({ text: `Fonte: ${track.source || 'N/A'}` })
-        .setTimestamp();
-
-    channel.send({ embeds: [embed] });
+    const ui = createNowPlayingUI(queue, track);
+    channel.send(ui);
 });
 
 player.events.on('audioTrackAdd', (queue, track) => {
