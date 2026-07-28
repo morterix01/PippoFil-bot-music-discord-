@@ -44,7 +44,7 @@ for (const file of commandFiles) {
 
 // ─── EVENTI DISCORD ────────────────────────────────────────────────────────────
 
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`\n✅ Bot online! Loggato come ${client.user.tag}`);
     console.log(`📋 Comandi caricati: ${client.commands.size}`);
     client.user.setActivity('🎵 Musica da YT & Spotify', { type: 2 }); // LISTENING
