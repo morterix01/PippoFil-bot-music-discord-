@@ -1,0 +1,20 @@
+# Dipendenze
+node_modules/
+
+# Variabili d'ambiente (NON caricare mai i token su GitHub!)
+.env
+
+# File di sistema
+.DS_Store
+Thumbs.db
+
+# Log
+*.log
+npm-debug.log*
+
+# ZIP
+*.zip
+
+# Cartelle temporanee
+.helm-diag/
+.qodo/
