@@ -1,4 +1,7 @@
 require('dotenv').config();
+if (!global.crypto) {
+    global.crypto = require('crypto');
+}
 const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
