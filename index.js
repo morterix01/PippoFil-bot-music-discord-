@@ -181,16 +181,13 @@ player.events.on('debug', (queue, message) => {
         });
         console.log('[Player] Estrattore YouTube (youtubei) caricato.');
 
-        // ── OVERRIDE STREAM: usa yt-dlp + ffmpeg per stream audio affidabile ──
+        // ── OVERRIDE STREAM: usa yt-dlp per stream audio affidabile ──
         const ytExtractor = player.extractors.store.get('com.retrouser955.discord-player.discord-player-youtubei');
         if (ytExtractor) {
             const originalStream = ytExtractor.stream.bind(ytExtractor);
             ytExtractor.stream = async function(track, options) {
                 try {
                     console.log(`[YT-DLP] Avvio stream per: ${track.title}`);
-                    const { spawn } = require('child_process');
-
-                    // yt-dlp scarica l'audio e lo invia su stdout
                     const ytdlp = youtubeDl.exec(track.url, {
                         output: '-',
                         format: 'bestaudio',
@@ -199,35 +196,13 @@ player.events.on('debug', (queue, message) => {
                         quiet: true,
                     });
 
-                    // ffmpeg converte da WebM/Opus a PCM s16le 48kHz stereo
-                    const ffmpegPath = require('ffmpeg-static');
-                    const ffmpegProc = spawn(ffmpegPath, [
-                        '-i', 'pipe:0',
-                        '-analyzeduration', '0',
-                        '-loglevel', '0',
-                        '-f', 's16le',
-                        '-ar', '48000',
-                        '-ac', '2',
-                        'pipe:1'
-                    ], { stdio: ['pipe', 'pipe', 'ignore'] });
-
-                    ytdlp.stdout.pipe(ffmpegProc.stdin);
-
-                    // Previene EPIPE crash quando uno dei due processi chiude il pipe
-                    ytdlp.stdout.on('error', (err) => {
-                        if (err.code !== 'EPIPE' && err.code !== 'EOF') console.error('[YT-DLP stdout Error]', err.message);
-                    });
-                    ffmpegProc.stdin.on('error', (err) => {
-                        if (err.code !== 'EPIPE' && err.code !== 'EOF') console.error('[FFmpeg stdin Error]', err.message);
-                    });
-
+                    ytdlp.stdout.on('error', () => {});
                     ytdlp.on('error', (err) => console.error('[YT-DLP Error]', err.message));
-                    ffmpegProc.on('error', (err) => console.error('[FFmpeg Error]', err.message));
 
-                    console.log('[YT-DLP] ✅ Pipeline yt-dlp → ffmpeg → PCM (raw) avviata');
+                    console.log('[YT-DLP] ✅ Stream yt-dlp (arbitrary) avviato');
                     return {
-                        stream: ffmpegProc.stdout,
-                        type: 'raw'
+                        stream: ytdlp.stdout,
+                        type: 'arbitrary'
                     };
                 } catch (err) {
                     console.error('[YT-DLP] Errore, fallback a estrattore originale:', err.message);
