@@ -1,7 +1,7 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env'), override: true });
 const { REST, Routes } = require('discord.js');
 const fs = require('fs');
-const path = require('path');
 
 const commands = [];
 const commandsPath = path.join(__dirname, 'commands');
@@ -32,12 +32,22 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
             return;
         }
 
-        const data = await rest.put(
-            Routes.applicationCommands(process.env.CLIENT_ID),
-            { body: commands },
-        );
-
-        console.log(`Comandi registrati con successo: ${data.length}`);
+        let data;
+        if (process.env.GUILD_ID) {
+            console.log(`Registrazione immediata nel server (Guild ID: ${process.env.GUILD_ID})...`);
+            data = await rest.put(
+                Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+                { body: commands },
+            );
+            console.log(`Comandi registrati nel server con successo: ${data.length}`);
+        } else {
+            console.log("Registrazione globale in corso (può richiedere fino a 1 ora)...");
+            data = await rest.put(
+                Routes.applicationCommands(process.env.CLIENT_ID),
+                { body: commands },
+            );
+            console.log(`Comandi registrati globalmente con successo: ${data.length}`);
+        }
     } catch (error) {
         console.error(error);
     }

@@ -2,11 +2,14 @@ require('dotenv').config();
 if (!global.crypto) {
     global.crypto = require('crypto');
 }
+
 const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
 const fs = require('fs');
 const path = require('path');
+const ytdl = require('@distube/ytdl-core');
+const YouTube = require('youtube-sr').default;
 
 // Crea il client Discord
 const client = new Client({
@@ -22,7 +25,7 @@ const player = new Player(client, {
     skipFFmpeg: false,
 });
 
-// Carica gli estrattori (YouTube, Spotify, SoundCloud, ecc.)
+// Carica gli estrattori (Spotify, SoundCloud, ecc.)
 player.extractors.loadMulti(DefaultExtractors).then(() => {
     console.log('[Player] Estrattori caricati con successo.');
 }).catch(console.error);
@@ -50,7 +53,7 @@ for (const file of commandFiles) {
 client.once('clientReady', () => {
     console.log(`\n✅ Bot online! Loggato come ${client.user.tag}`);
     console.log(`📋 Comandi caricati: ${client.commands.size}`);
-    client.user.setActivity('🎵 Musica da YT & Spotify', { type: 2 }); // LISTENING
+    client.user.setActivity('🎵 Musica da YT & Spotify', { type: 2 });
 });
 
 client.on('interactionCreate', async interaction => {
@@ -88,7 +91,7 @@ player.events.on('playerStart', (queue, track) => {
     if (!channel) return;
 
     const embed = new EmbedBuilder()
-        .setColor(0x1DB954) // Verde Spotify
+        .setColor(0x1DB954)
         .setTitle('🎵 In Riproduzione')
         .setDescription(`**[${track.title}](${track.url})**`)
         .addFields(
@@ -129,7 +132,7 @@ player.events.on('emptyChannel', (queue) => {
 player.events.on('error', (queue, error) => {
     console.error(`[PlayerError] ${error.message}`);
     const channel = queue.metadata?.channel;
-    if (channel) channel.send(`❌ Errore del player: ${error.message}`);
+    if (channel && error.message !== 'Aborted') channel.send(`❌ Errore del player: ${error.message}`);
 });
 
 player.events.on('playerError', (queue, error) => {

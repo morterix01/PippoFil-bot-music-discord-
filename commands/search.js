@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const { useMainPlayer } = require('discord-player');
+const YouTube = require('youtube-sr').default;
+const ytdl = require('@distube/ytdl-core');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -25,20 +27,18 @@ module.exports = {
         await interaction.deferReply();
 
         try {
-            const results = await player.search(query, { requestedBy: interaction.user });
+            const results = await YouTube.search(query, { limit: 5 });
 
-            if (!results.hasTracks()) {
+            if (!results || results.length === 0) {
                 return interaction.followUp('❌ Nessun risultato trovato!');
             }
-
-            const tracks = results.tracks.slice(0, 5);
 
             const embed = new EmbedBuilder()
                 .setColor(0xFF0000)
                 .setTitle(`🔍 Risultati per: "${query}"`)
                 .setDescription(
-                    tracks.map((t, i) =>
-                        `**${i + 1}.** [${t.title}](${t.url}) — ${t.duration} — *${t.author}*`
+                    results.map((t, i) =>
+                        `**${i + 1}.** [${t.title}](${t.url}) — ${t.durationFormatted || 'N/A'} — *${t.channel?.name || 'Sconosciuto'}*`
                     ).join('\n\n')
                 )
                 .setFooter({ text: 'Rispondi con il numero (1-5) per scegliere una canzone, o "annulla" per uscire.' })
@@ -46,9 +46,8 @@ module.exports = {
 
             await interaction.followUp({ embeds: [embed] });
 
-            // Attendi risposta testuale
             const filter = m => m.author.id === interaction.user.id &&
-                ((!isNaN(m.content) && +m.content >= 1 && +m.content <= tracks.length) || m.content.toLowerCase() === 'annulla');
+                ((!isNaN(m.content) && +m.content >= 1 && +m.content <= results.length) || m.content.toLowerCase() === 'annulla');
 
             const collector = interaction.channel.createMessageCollector({ filter, time: 30_000, max: 1 });
 
@@ -57,7 +56,7 @@ module.exports = {
                     return msg.reply('❌ Ricerca annullata.');
                 }
 
-                const chosen = tracks[parseInt(msg.content) - 1];
+                const chosen = results[parseInt(msg.content) - 1];
                 try {
                     await player.play(channel, chosen.url, {
                         nodeOptions: {
@@ -69,6 +68,18 @@ module.exports = {
                             leaveOnEmpty: true,
                             leaveOnEnd: false,
                             volume: 80,
+                            async onBeforeCreateStream(track, source, _queue) {
+                                try {
+                                    return ytdl(chosen.url, {
+                                        filter: 'audioonly',
+                                        highWaterMark: 1 << 25,
+                                        quality: 'highestaudio',
+                                    });
+                                } catch (err) {
+                                    console.error('[Stream Error]', err);
+                                    return null;
+                                }
+                            },
                         },
                         requestedBy: interaction.user,
                     });
