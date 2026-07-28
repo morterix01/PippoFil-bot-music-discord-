@@ -53,6 +53,15 @@ client.once('clientReady', () => {
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
 
+    // Restrizione canale musicale (opzionale)
+    const musicChannelId = process.env.MUSIC_CHANNEL_ID;
+    if (musicChannelId && interaction.channelId !== musicChannelId) {
+        return interaction.reply({
+            content: `❌ I comandi musicali funzionano solo in <#${musicChannelId}>!`,
+            ephemeral: true,
+        });
+    }
+
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
