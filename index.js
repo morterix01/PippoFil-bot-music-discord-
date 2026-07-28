@@ -29,43 +29,9 @@ const player = new Player(client, {
     skipFFmpeg: false,
 });
 
-// Carica gli estrattori (YouTube, Spotify, SoundCloud, ecc.)
-(async () => {
-    // Carica dinamicamente YoutubeiExtractor (modulo ESM)
-    const { YoutubeiExtractor } = await import('discord-player-youtubei');
-    await player.extractors.register(YoutubeiExtractor, {
-        overrideBridgeMode: 'yt'
-    });
-    console.log('[Player] Estrattore YouTube (youtubei) caricato.');
-
-    // Poi registra gli estrattori di default (Spotify, SoundCloud, Apple Music, ecc.)
-    await player.extractors.loadMulti(DefaultExtractors);
-    console.log('[Player] Estrattori di default caricati.');
-})().catch(err => {
-    console.error('[Player] Errore nel caricamento estrattori:', err);
-});
-
-// Carica i comandi
-client.commands = new Collection();
-const commandsPath = path.join(__dirname, 'commands');
-
-if (!fs.existsSync(commandsPath)) fs.mkdirSync(commandsPath);
-
-const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
-for (const file of commandFiles) {
-    const filePath = path.join(commandsPath, file);
-    const command = require(filePath);
-    if ('data' in command && 'execute' in command) {
-        client.commands.set(command.data.name, command);
-        console.log(`[Commands] Caricato: /${command.data.name}`);
-    } else {
-        console.warn(`[WARNING] Il comando ${filePath} manca di 'data' o 'execute'.`);
-    }
-}
-
 // ─── EVENTI DISCORD ────────────────────────────────────────────────────────────
 
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`\n✅ Bot online! Loggato come ${client.user.tag}`);
     console.log(`📋 Comandi caricati: ${client.commands.size}`);
     client.user.setActivity('🎵 /play per la musica', { type: 2 });
@@ -156,5 +122,40 @@ player.events.on('playerError', (queue, error) => {
     console.error(`[PlayerError - Audio] ${error.message}`);
 });
 
-// Esegui login
-client.login(process.env.DISCORD_TOKEN);
+// ─── INIZIALIZZAZIONE E LOGIN SEQUENZIALE ──────────────────────────────────────
+(async () => {
+    try {
+        // Carica i comandi
+        client.commands = new Collection();
+        const commandsPath = path.join(__dirname, 'commands');
+        if (!fs.existsSync(commandsPath)) fs.mkdirSync(commandsPath);
+
+        const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+        for (const file of commandFiles) {
+            const filePath = path.join(commandsPath, file);
+            const command = require(filePath);
+            if ('data' in command && 'execute' in command) {
+                client.commands.set(command.data.name, command);
+                console.log(`[Commands] Caricato: /${command.data.name}`);
+            } else {
+                console.warn(`[WARNING] Il comando ${filePath} manca di 'data' o 'execute'.`);
+            }
+        }
+
+        // Carica dinamicamente YoutubeiExtractor (modulo ESM)
+        const { YoutubeiExtractor } = await import('discord-player-youtubei');
+        await player.extractors.register(YoutubeiExtractor, {
+            overrideBridgeMode: 'yt'
+        });
+        console.log('[Player] Estrattore YouTube (youtubei) caricato.');
+
+        // Carica estrattori di default (Spotify, SoundCloud, ecc.)
+        await player.extractors.loadMulti(DefaultExtractors);
+        console.log('[Player] Estrattori di default caricati.');
+
+        // Esegui login solo DOPO che gli estrattori e i comandi sono pronti
+        await client.login(process.env.DISCORD_TOKEN);
+    } catch (err) {
+        console.error('[Initialization Error]', err);
+    }
+})();
