@@ -33,7 +33,7 @@ function createNowPlayingUI(queue, track) {
             { name: '🔁 Loop Mode', value: `\`${loopStatus}\``, inline: true },
             { name: '🎤 Richiesto da', value: track.requestedBy?.toString() || 'N/A', inline: true },
         )
-        .setFooter({ text: `Fonte: ${track.source || 'YouTube'} • PippoFil Bot` })
+        .setFooter({ text: 'Questo bot é stato creato da Luissrome in memoria di un suo caro amico' })
         .setTimestamp();
 
     if (coverUrl) {

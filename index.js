@@ -40,7 +40,7 @@ const player = new Player(client);
 client.once('clientReady', () => {
     console.log(`\n✅ Bot online! Loggato come ${client.user.tag}`);
     console.log(`📋 Comandi caricati: ${client.commands.size}`);
-    client.user.setActivity('🎵 /play per la musica', { type: 2 });
+    client.user.setActivity('Questo bot é stato creato da Luissrome in memoria di un suo caro amico');
 });
 
 client.on('interactionCreate', async interaction => {

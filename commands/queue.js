@@ -55,7 +55,7 @@ module.exports = {
             .setColor(0x1DB954)
             .setTitle(`📜 Lista d'Attesa (Coda Musicale)`)
             .setDescription(`**▶️ In Riproduzione Ora:**\n**[${current.title}](${current.url})**\n*di ${current.author}*\n${progress}\n\n─── **PROSSIMI BRANI IN CODA** (Pagina ${page}/${totalPages}) ───\n\n${queueList}`)
-            .setFooter({ text: `Brani in coda: ${tracks.length} • Volume: ${queue.node.volume}% • PippoFil Bot` })
+            .setFooter({ text: `Brani in coda: ${tracks.length} • Questo bot é stato creato da Luissrome in memoria di un suo caro amico` })
             .setTimestamp();
 
         if (coverUrl) {
