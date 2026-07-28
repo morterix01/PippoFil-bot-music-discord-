@@ -1,15 +1,16 @@
-require('dotenv').config();
-if (!global.crypto) {
-    global.crypto = require('crypto');
+// ─── POLYFILL: Web Crypto API per Node 18 ───────────────────────────────────
+if (!globalThis.crypto) {
+    globalThis.crypto = require('crypto').webcrypto;
 }
+
+require('dotenv').config();
 
 const { Client, GatewayIntentBits, Collection, EmbedBuilder } = require('discord.js');
 const { Player } = require('discord-player');
 const { DefaultExtractors } = require('@discord-player/extractor');
+const { YoutubeiExtractor } = require('discord-player-youtubei');
 const fs = require('fs');
 const path = require('path');
-const ytdl = require('@distube/ytdl-core');
-const YouTube = require('youtube-sr').default;
 
 // Crea il client Discord
 const client = new Client({
@@ -25,10 +26,18 @@ const player = new Player(client, {
     skipFFmpeg: false,
 });
 
-// Carica gli estrattori (Spotify, SoundCloud, ecc.)
-player.extractors.loadMulti(DefaultExtractors).then(() => {
-    console.log('[Player] Estrattori caricati con successo.');
-}).catch(console.error);
+// Carica gli estrattori (YouTube, Spotify, SoundCloud, ecc.)
+(async () => {
+    // Prima registra l'estrattore YouTube (youtubei)
+    await player.extractors.register(YoutubeiExtractor, {});
+    console.log('[Player] Estrattore YouTube (youtubei) caricato.');
+
+    // Poi registra gli estrattori di default (Spotify, SoundCloud, Apple Music, ecc.)
+    await player.extractors.loadMulti(DefaultExtractors);
+    console.log('[Player] Estrattori di default caricati.');
+})().catch(err => {
+    console.error('[Player] Errore nel caricamento estrattori:', err);
+});
 
 // Carica i comandi
 client.commands = new Collection();
@@ -53,7 +62,7 @@ for (const file of commandFiles) {
 client.once('clientReady', () => {
     console.log(`\n✅ Bot online! Loggato come ${client.user.tag}`);
     console.log(`📋 Comandi caricati: ${client.commands.size}`);
-    client.user.setActivity('🎵 Musica da YT & Spotify', { type: 2 });
+    client.user.setActivity('🎵 /play per la musica', { type: 2 });
 });
 
 client.on('interactionCreate', async interaction => {
@@ -132,7 +141,9 @@ player.events.on('emptyChannel', (queue) => {
 player.events.on('error', (queue, error) => {
     console.error(`[PlayerError] ${error.message}`);
     const channel = queue.metadata?.channel;
-    if (channel && error.message !== 'Aborted') channel.send(`❌ Errore del player: ${error.message}`);
+    if (channel && error.message !== 'Aborted') {
+        channel.send(`❌ Errore del player: ${error.message}`);
+    }
 });
 
 player.events.on('playerError', (queue, error) => {
