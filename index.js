@@ -59,7 +59,7 @@ for (const file of commandFiles) {
 
 // ─── EVENTI DISCORD ────────────────────────────────────────────────────────────
 
-client.once('clientReady', () => {
+client.once('ready', () => {
     console.log(`\n✅ Bot online! Loggato come ${client.user.tag}`);
     console.log(`📋 Comandi caricati: ${client.commands.size}`);
     client.user.setActivity('🎵 /play per la musica', { type: 2 });
